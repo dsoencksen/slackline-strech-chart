@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Slackline Webbing Stretch Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background-color: #0a0a0a;
+      }
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        background-color: #1a1a1a;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        position: relative;
+      }
+      h1 {
+        text-align: center;
+        color: #ffffff;
+        margin-bottom: 30px;
+      }
+      .controls {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      label {
+        font-weight: bold;
+        color: #999999;
+      }
+      select {
+        padding: 8px 12px;
+        border: 1px solid #333;
+        border-radius: 4px;
+        font-size: 14px;
+        min-width: 200px;
+        background-color: #2a2a2a;
+        color: #cccccc;
+      }
+      select option {
+        background-color: #2a2a2a;
+        color: #cccccc;
+      }
+      input[type="checkbox"] {
+        cursor: pointer;
+        width: 16px;
+        height: 16px;
+        margin-right: 5px;
+        vertical-align: middle;
+      }
+      button {
+        padding: 8px 20px;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      button.clear {
+        background-color: #f44336;
+      }
+      button.clear:hover {
+        background-color: #da190b;
+      }
+      #chart {
+        width: 100%;
+        height: 700px;
+        margin-top: 20px;
+      }
+      .toast {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background-color: #2a2a2a;
+        color: #cccccc;
+        padding: 16px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+        max-width: 400px;
+        text-align: center;
+      }
+      .toast.show {
+        opacity: 1;
+      }
+      .toast.error {
+        background-color: #c62828;
+      }
+      .toast.success {
+        background-color: #2e7d32;
+      }
+      .toast.warning {
+        background-color: #e65100;
+      }
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+      }
+      .modal-overlay.show {
+        opacity: 1;
+      }
+      .modal {
+        background-color: #1a1a1a;
+        border-radius: 12px;
+        padding: 30px;
+        max-width: 450px;
+        width: 90%;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+        transform: scale(0.9);
+        transition: transform 0.3s ease-in-out;
+      }
+      .modal-overlay.show .modal {
+        transform: scale(1);
+      }
+      .modal-title {
+        font-size: 20px;
+        font-weight: bold;
+        color: #ffffff;
+        margin-bottom: 15px;
+      }
+      .modal-message {
+        font-size: 16px;
+        color: #999999;
+        margin-bottom: 25px;
+        line-height: 1.5;
+      }
+      .modal-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+      .modal-button {
+        padding: 10px 24px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      .modal-button.cancel {
+        background-color: #3a3a3a;
+        color: #cccccc;
+      }
+      .modal-button.cancel:hover {
+        background-color: #4a4a4a;
+      }
+      .modal-button.confirm {
+        background-color: #c62828;
+        color: white;
+      }
+      .modal-button.confirm:hover {
+        background-color: #b71c1c;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Slackline Webbing Stretch Chart</h1>
+
+      <div class="controls">
+        <div>
+          <label>
+            <input type="checkbox" id="showDiscontinued" checked />
+            In Stock Only
+          </label>
+        </div>
+        <div>
+          <label for="manufacturer">Manufacturer:</label>
+          <select id="manufacturer">
+            <option value="">Please select...</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="model">Webbing Model:</label>
+          <select id="model" disabled>
+            <option value="">Select manufacturer first...</option>
+          </select>
+        </div>
+
+        <button id="addSeries">Add Series</button>
+        <button id="clearAll" class="clear">Clear All</button>
+      </div>
+
+      <div id="chart"></div>
+    </div>
+
+    <script>
+      let webbingData = {};
+      let chartInstance = null;
+      let seriesData = [];
+      const colors = [
+        "#5470c6",
+        "#91cc75",
+        "#fac858",
+        "#ee6666",
+        "#73c0de",
+        "#3ba272",
+        "#fc8452",
+        "#9a60b4",
+        "#ea7ccc",
+        "#FF6B6B",
+        "#4ECDC4",
+        "#45B7D1",
+        "#FFA07A",
+        "#98D8C8",
+        "#F7DC6F",
+      ];
+
+      function showToast(message, type = "info") {
+        const existingToast = document.querySelector(".toast");
+        if (existingToast) {
+          existingToast.remove();
+        }
+
+        const toast = document.createElement("div");
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        document.querySelector(".container").appendChild(toast);
+
+        setTimeout(() => {
+          toast.classList.add("show");
+        }, 10);
+
+        setTimeout(() => {
+          toast.classList.remove("show");
+          setTimeout(() => {
+            toast.remove();
+          }, 300);
+        }, 3000);
+      }
+
+      function showConfirm(message, onConfirm) {
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+
+        const modal = document.createElement("div");
+        modal.className = "modal";
+
+        const title = document.createElement("div");
+        title.className = "modal-title";
+        title.textContent = "Confirm";
+
+        const messageDiv = document.createElement("div");
+        messageDiv.className = "modal-message";
+        messageDiv.textContent = message;
+
+        const buttons = document.createElement("div");
+        buttons.className = "modal-buttons";
+
+        const cancelButton = document.createElement("button");
+        cancelButton.className = "modal-button cancel";
+        cancelButton.textContent = "Cancel";
+        cancelButton.onclick = () => {
+          overlay.classList.remove("show");
+          setTimeout(() => overlay.remove(), 300);
+        };
+
+        const confirmButton = document.createElement("button");
+        confirmButton.className = "modal-button confirm";
+        confirmButton.textContent = "OK";
+        confirmButton.onclick = () => {
+          overlay.classList.remove("show");
+          setTimeout(() => overlay.remove(), 300);
+          onConfirm();
+        };
+
+        buttons.appendChild(cancelButton);
+        buttons.appendChild(confirmButton);
+
+        modal.appendChild(title);
+        modal.appendChild(messageDiv);
+        modal.appendChild(buttons);
+        overlay.appendChild(modal);
+
+        document.body.appendChild(overlay);
+
+        setTimeout(() => {
+          overlay.classList.add("show");
+        }, 10);
+      }
+
+      async function loadData() {
+        try {
+          const response = await fetch("webbing-data.json");
+          webbingData = await response.json();
+          populateManufacturers();
+        } catch (error) {
+          console.error("Error loading data:", error);
+          showToast("Error loading data. Please reload the page.", "error");
+        }
+      }
+
+      function populateManufacturers() {
+        const manufacturerSelect = document.getElementById("manufacturer");
+        const showOnlyInProduction = document.getElementById("showDiscontinued").checked;
+        const currentValue = manufacturerSelect.value;
+
+        manufacturerSelect.innerHTML = '<option value="">Please select...</option>';
+
+        let manufacturers = Object.keys(webbingData.manufacturers);
+
+        // Filter manufacturers that have at least one in-production model
+        if (showOnlyInProduction) {
+          manufacturers = manufacturers.filter((manufacturer) => {
+            return webbingData.manufacturers[manufacturer].some((model) => model.inProduction !== false);
+          });
+        }
+
+        manufacturers.sort().forEach((manufacturer) => {
+          const option = document.createElement("option");
+          option.value = manufacturer;
+          option.textContent = manufacturer;
+          manufacturerSelect.appendChild(option);
+        });
+
+        // Restore previous selection if still available
+        if (currentValue && manufacturers.includes(currentValue)) {
+          manufacturerSelect.value = currentValue;
+        }
+      }
+
+      function populateModels(manufacturer) {
+        const modelSelect = document.getElementById("model");
+        const showOnlyInProduction = document.getElementById("showDiscontinued").checked;
+        modelSelect.innerHTML = '<option value="">Please select...</option>';
+        modelSelect.disabled = false;
+
+        if (manufacturer && webbingData.manufacturers[manufacturer]) {
+          let models = webbingData.manufacturers[manufacturer];
+
+          // Filter to only in-production models if checkbox is checked
+          if (showOnlyInProduction) {
+            models = models.filter((model) => model.inProduction !== false);
+          }
+          const sortedModels = models
+            .map((model, index) => {
+              // Find original index in full array
+              const originalIndex = webbingData.manufacturers[manufacturer].indexOf(model);
+              return { model, index: originalIndex };
+            })
+            .sort((a, b) => a.model.name.localeCompare(b.model.name));
+
+          sortedModels.forEach(({ model, index }) => {
+            const option = document.createElement("option");
+            option.value = index;
+            option.textContent = model.name;
+            modelSelect.appendChild(option);
+          });
+        } else {
+          modelSelect.disabled = true;
+        }
+      }
+
+      function initChart() {
+        chartInstance = echarts.init(document.getElementById("chart"), "dark");
+
+        const option = {
+          title: {
+            text: "Webbing Stretch Chart",
+            left: "center",
+            textStyle: {
+              color: "#ffffff",
+            },
+          },
+          tooltip: {
+            trigger: "axis",
+            formatter: function (params) {
+              let result = `Tension: ${params[0].axisValue} kN<br/>`;
+              params.forEach((param) => {
+                result += `${param.marker} ${param.seriesName}: ${param.value[1]}%<br/>`;
+              });
+              return result;
+            },
+            backgroundColor: "rgba(30, 30, 30, 0.95)",
+            borderColor: "#333",
+            textStyle: {
+              color: "#cccccc",
+            },
+          },
+          legend: {
+            data: [],
+            top: 40,
+            type: "scroll",
+            textStyle: {
+              color: "#999999",
+            },
+          },
+          grid: {
+            left: "3%",
+            right: "4%",
+            bottom: "3%",
+            containLabel: true,
+          },
+          toolbox: {
+            feature: {
+              saveAsImage: {},
+            },
+            iconStyle: {
+              borderColor: "#999999",
+            },
+          },
+          xAxis: {
+            type: "value",
+            name: "Tension (kN)",
+            nameLocation: "middle",
+            nameGap: 30,
+            min: 0,
+            nameTextStyle: {
+              color: "#999999",
+            },
+            axisLabel: {
+              color: "#999999",
+            },
+            axisLine: {
+              lineStyle: {
+                color: "#333",
+              },
+            },
+            splitLine: {
+              lineStyle: {
+                color: "#2a2a2a",
+              },
+            },
+          },
+          yAxis: {
+            type: "value",
+            name: "Stretch (%)",
+            nameLocation: "middle",
+            nameGap: 50,
+            min: 0,
+            nameTextStyle: {
+              color: "#999999",
+            },
+            axisLabel: {
+              color: "#999999",
+            },
+            axisLine: {
+              lineStyle: {
+                color: "#333",
+              },
+            },
+            splitLine: {
+              lineStyle: {
+                color: "#2a2a2a",
+              },
+            },
+          },
+          dataZoom: [
+            {
+              type: "inside",
+              xAxisIndex: 0,
+            },
+            {
+              type: "slider",
+              xAxisIndex: 0,
+            },
+          ],
+          series: [],
+        };
+
+        chartInstance.setOption(option);
+      }
+
+      function addSeries() {
+        const manufacturerSelect = document.getElementById("manufacturer");
+        const modelSelect = document.getElementById("model");
+
+        const manufacturer = manufacturerSelect.value;
+        const modelIndex = modelSelect.value;
+
+        if (!manufacturer || modelIndex === "") {
+          showToast("Please select manufacturer and model first.", "warning");
+          return;
+        }
+
+        const model = webbingData.manufacturers[manufacturer][modelIndex];
+        const seriesName = `${manufacturer} - ${model.name}`;
+
+        if (seriesData.some((s) => s.name === seriesName)) {
+          showToast("This series has already been added.", "warning");
+          return;
+        }
+
+        const colorIndex = seriesData.length % colors.length;
+
+        const newSeries = {
+          name: seriesName,
+          type: "line",
+          smooth: true,
+          data: model.data.map((point) => [point.x, point.y]),
+          itemStyle: {
+            color: colors[colorIndex],
+          },
+          lineStyle: {
+            width: 2,
+          },
+          showSymbol: true,
+          symbolSize: 6,
+        };
+
+        seriesData.push(newSeries);
+        updateChart();
+      }
+
+      function updateChart() {
+        chartInstance.setOption(
+          {
+            legend: {
+              data: seriesData.map((s) => s.name),
+            },
+            series: seriesData,
+          },
+          {
+            notMerge: false,
+            replaceMerge: ["series"],
+          }
+        );
+      }
+
+      function clearAllSeries() {
+        if (seriesData.length === 0) {
+          return;
+        }
+
+        showConfirm("Do you really want to remove all series?", () => {
+          seriesData = [];
+          chartInstance.setOption(
+            {
+              legend: {
+                data: [],
+              },
+              series: [],
+            },
+            {
+              notMerge: false,
+              replaceMerge: ["series"],
+            }
+          );
+          showToast("All series removed.", "success");
+        });
+      }
+
+      document.getElementById("manufacturer").addEventListener("change", function (e) {
+        populateModels(e.target.value);
+      });
+
+      document.getElementById("showDiscontinued").addEventListener("change", function () {
+        populateManufacturers();
+        const manufacturerSelect = document.getElementById("manufacturer");
+        if (manufacturerSelect.value) {
+          populateModels(manufacturerSelect.value);
+        }
+      });
+
+      document.getElementById("addSeries").addEventListener("click", addSeries);
+      document.getElementById("clearAll").addEventListener("click", clearAllSeries);
+
+      loadData().then(() => {
+        initChart();
+      });
+    </script>
+  </body>
+</html>

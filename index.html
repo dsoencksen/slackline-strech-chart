@@ -68,7 +68,6 @@
         border: none;
         border-radius: 4px;
         cursor: pointer;
-        font-size: 14px;
         font-weight: bold;
       }
       button:hover {
@@ -209,8 +208,9 @@
           </select>
         </div>
 
-        <button id="addSeries">Add Series</button>
-        <button id="clearAll" class="clear">Clear All</button>
+        <button id="addSeries" title="Add Webbing">+</button>
+        <button id="addAllFromManufacturer" title="Add All From Manufacturer">+ All From Manufacturer</button>
+        <button id="clearAll" class="clear" title="Clear All">×</button>
       </div>
 
       <div id="chart"></div>
@@ -534,6 +534,68 @@
         updateChart();
       }
 
+      function addAllFromManufacturer() {
+        const manufacturerSelect = document.getElementById("manufacturer");
+        const manufacturer = manufacturerSelect.value;
+
+        if (!manufacturer) {
+          showToast("Please select a manufacturer first.", "warning");
+          return;
+        }
+
+        const showOnlyInProduction = document.getElementById("showDiscontinued").checked;
+        let models = webbingData.manufacturers[manufacturer];
+
+        // Filter to only in-production models if checkbox is checked
+        if (showOnlyInProduction) {
+          models = models.filter((model) => model.inProduction !== false);
+        }
+
+        let addedCount = 0;
+        let skippedCount = 0;
+
+        models.forEach((model) => {
+          const seriesName = `${manufacturer} - ${model.name}`;
+
+          if (seriesData.some((s) => s.name === seriesName)) {
+            skippedCount++;
+            return;
+          }
+
+          const colorIndex = seriesData.length % colors.length;
+
+          const newSeries = {
+            name: seriesName,
+            type: "line",
+            smooth: true,
+            data: model.data.map((point) => [point.x, point.y]),
+            itemStyle: {
+              color: colors[colorIndex],
+            },
+            lineStyle: {
+              width: 2,
+            },
+            showSymbol: true,
+            symbolSize: 6,
+          };
+
+          seriesData.push(newSeries);
+          addedCount++;
+        });
+
+        updateChart();
+
+        if (addedCount > 0 && skippedCount > 0) {
+          showToast(`Added ${addedCount} series, skipped ${skippedCount} (already added).`, "success");
+        } else if (addedCount > 0) {
+          showToast(`Added ${addedCount} series from ${manufacturer}.`, "success");
+        } else if (skippedCount > 0) {
+          showToast(`All ${skippedCount} series from ${manufacturer} were already added.`, "warning");
+        } else {
+          showToast(`No series found for ${manufacturer}.`, "warning");
+        }
+      }
+
       function updateChart() {
         chartInstance.setOption(
           {
@@ -585,6 +647,7 @@
       });
 
       document.getElementById("addSeries").addEventListener("click", addSeries);
+      document.getElementById("addAllFromManufacturer").addEventListener("click", addAllFromManufacturer);
       document.getElementById("clearAll").addEventListener("click", clearAllSeries);
 
       loadData().then(() => {

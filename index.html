@@ -513,7 +513,7 @@
         }
 
         const model = webbingData.manufacturers[manufacturer][modelIndex];
-        const seriesName = `${manufacturer} - ${model.name}`;
+        const seriesName = model.name;
 
         if (seriesData.some((s) => s.name === seriesName)) {
           showToast("This series has already been added.", "warning");
@@ -562,7 +562,7 @@
         let skippedCount = 0;
 
         models.forEach((model) => {
-          const seriesName = `${manufacturer} - ${model.name}`;
+          const seriesName = model.name;
 
           if (seriesData.some((s) => s.name === seriesName)) {
             skippedCount++;
